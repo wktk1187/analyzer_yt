@@ -20,20 +20,41 @@ export const extractVideoId = (url: string): string | null => {
  */
 export const getTranscript = async (videoId: string): Promise<string> => {
   try {
+    console.log(`トランスクリプト取得開始: videoId=${videoId}`);
+    
     // 字幕を取得（日本語優先、なければ英語、それもなければ自動字幕）
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
-      lang: 'ja',
-    }).catch(() => 
-      YoutubeTranscript.fetchTranscript(videoId, {
-        lang: 'en',
-      })
-    ).catch(() => 
-      YoutubeTranscript.fetchTranscript(videoId)
-    );
+    let transcriptItems;
+    try {
+      // まず日本語を試す
+      console.log('日本語の字幕を試行中...');
+      transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+        lang: 'ja',
+      });
+      console.log('日本語の字幕を取得しました');
+    } catch (jaError) {
+      console.log('日本語の字幕取得に失敗:', jaError);
+      try {
+        // 次に英語を試す
+        console.log('英語の字幕を試行中...');
+        transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+          lang: 'en',
+        });
+        console.log('英語の字幕を取得しました');
+      } catch (enError) {
+        console.log('英語の字幕取得に失敗:', enError);
+        // 最後に自動字幕を試す
+        console.log('自動字幕を試行中...');
+        transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+        console.log('自動字幕を取得しました');
+      }
+    }
 
     if (!transcriptItems || transcriptItems.length === 0) {
+      console.error('字幕データが空です');
       throw new Error('字幕が見つかりませんでした');
     }
+
+    console.log(`取得した字幕数: ${transcriptItems.length}件`);
 
     // 時間付きのテキストに整形
     const formattedTranscript = transcriptItems.map(item => {
@@ -45,10 +66,12 @@ export const getTranscript = async (videoId: string): Promise<string> => {
       return `[${timeStamp}] ${item.text}`;
     }).join('\n');
 
+    console.log('字幕データの整形が完了しました');
     return formattedTranscript;
   } catch (error) {
-    console.error('字幕取得エラー:', error);
-    throw new Error('字幕の取得に失敗しました');
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    console.error(`字幕取得エラー: ${errorMessage}`, error);
+    throw new Error(`字幕の取得に失敗しました: ${errorMessage}`);
   }
 };
 
