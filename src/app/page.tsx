@@ -2,11 +2,37 @@
 
 import { useState } from "react";
 
+// 分析結果の型定義
+interface VideoAnalysis {
+  title: string;
+  summary: string;
+  conclusion: string;
+  points: string[];
+  comment: string;
+  videoUrl: string;
+  videoTitle?: string;
+  channelName?: string;
+  publishDate?: string;
+}
+
+// 複数動画分析結果の型定義
+interface MultiVideoAnalysis {
+  title: string;
+  summary: string;
+  conclusion: string;
+  videos: VideoAnalysis[];
+  keyword: string;
+  count: number;
+}
+
+// 分析結果の共通型
+type AnalysisResult = VideoAnalysis | MultiVideoAnalysis;
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [keyword, setKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +78,11 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 結果が複数動画分析かどうかを判定する関数
+  const isMultiVideoResult = (result: AnalysisResult): result is MultiVideoAnalysis => {
+    return 'videos' in result;
   };
 
   return (
@@ -138,7 +169,7 @@ export default function Home() {
               <div className="border-t border-gray-200">
                 <div className="px-4 py-5 sm:p-6 prose max-w-none">
                   {/* 単一動画分析の場合 */}
-                  {!result.videos && (
+                  {!isMultiVideoResult(result) && (
                     <>
                       {/* タイトル */}
                       <h2 className="text-xl font-bold mb-4">{result.title}</h2>
@@ -190,7 +221,7 @@ export default function Home() {
                   )}
 
                   {/* 複数動画分析の場合 */}
-                  {result.videos && (
+                  {isMultiVideoResult(result) && (
                     <>
                       {/* タイトル */}
                       <h2 className="text-xl font-bold mb-4">{result.title}</h2>
@@ -212,7 +243,7 @@ export default function Home() {
                         <h3 className="text-lg font-semibold mb-2">各動画の分析</h3>
                         
                         <div className="space-y-8 mt-4">
-                          {result.videos.map((video: any, videoIndex: number) => (
+                          {result.videos.map((video: VideoAnalysis, videoIndex: number) => (
                             <div key={videoIndex} className="bg-gray-50 p-4 rounded-lg">
                               <h4 className="text-md font-bold mb-2">
                                 {videoIndex + 1}. {video.title}

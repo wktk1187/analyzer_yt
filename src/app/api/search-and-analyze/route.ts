@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { getTranscript, extractVideoId } from '@/utils/getTranscript';
+import { getTranscript } from '@/utils/getTranscript';
 import OpenAI from 'openai';
 
 // OpenAI APIクライアントの初期化
@@ -13,7 +13,6 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
 // 検索条件
 const MAX_VIDEOS = 5;
-const MIN_SUBSCRIBERS = 10000;
 const MIN_VIEW_COUNT = 10000;
 const PUBLISHED_AFTER = new Date();
 PUBLISHED_AFTER.setFullYear(PUBLISHED_AFTER.getFullYear() - 1); // 1年前
@@ -34,6 +33,35 @@ interface YouTubeVideo {
       high: { url: string; width: number; height: number };
     };
   };
+}
+
+// YouTube APIレスポンスの型定義
+interface YouTubeVideoDetails {
+  id: string;
+  snippet: {
+    title: string;
+    channelTitle: string;
+    publishedAt: string;
+  };
+  statistics: {
+    viewCount: string;
+    likeCount?: string;
+    commentCount?: string;
+  };
+}
+
+// 分析結果の型定義
+interface AnalysisResult {
+  title: string;
+  summary: string;
+  conclusion: string;
+  points: string[];
+  comment: string;
+  videoUrl: string;
+  videoTitle: string;
+  channelName: string;
+  publishDate: string;
+  [key: string]: unknown;
 }
 
 export async function POST(request: Request) {
@@ -87,7 +115,7 @@ export async function POST(request: Request) {
     const analysisResults = await Promise.all(analysisPromises);
     
     // nullでない結果のみをフィルタリング
-    const validResults = analysisResults.filter(result => result !== null);
+    const validResults = analysisResults.filter(result => result !== null) as AnalysisResult[];
 
     if (validResults.length === 0) {
       return NextResponse.json(
@@ -101,10 +129,11 @@ export async function POST(request: Request) {
 
     // レスポンスを返す
     return NextResponse.json(combinedAnalysis);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('検索・分析エラー:', error);
+    const errorMessage = error instanceof Error ? error.message : '検索・分析中にエラーが発生しました';
     return NextResponse.json(
-      { error: error.message || '検索・分析中にエラーが発生しました' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -136,7 +165,7 @@ async function searchVideos(keyword: string): Promise<YouTubeVideo[]> {
     }
 
     // 各動画の詳細情報を取得して、条件でフィルタリング
-    const videoIds = response.data.items.map((item: any) => item.id.videoId).join(',');
+    const videoIds = response.data.items.map((item: YouTubeVideo) => item.id.videoId).join(',');
     const detailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
       params: {
         part: 'snippet,statistics',
@@ -147,7 +176,7 @@ async function searchVideos(keyword: string): Promise<YouTubeVideo[]> {
 
     // 条件に合う動画をフィルタリング
     const filteredVideos = detailsResponse.data.items
-      .filter((video: any) => {
+      .filter((video: YouTubeVideoDetails) => {
         const viewCount = parseInt(video.statistics.viewCount, 10) || 0;
         return viewCount >= MIN_VIEW_COUNT;
       })
@@ -156,7 +185,7 @@ async function searchVideos(keyword: string): Promise<YouTubeVideo[]> {
     // 元の検索結果と詳細情報をマージ
     return response.data.items
       .filter((item: YouTubeVideo) => 
-        filteredVideos.some((video: any) => video.id === item.id.videoId)
+        filteredVideos.some((video: YouTubeVideoDetails) => video.id === item.id.videoId)
       )
       .slice(0, MAX_VIDEOS);
   } catch (error) {
@@ -170,7 +199,7 @@ async function searchVideos(keyword: string): Promise<YouTubeVideo[]> {
  * @param videoId 動画ID
  * @returns 動画の詳細情報
  */
-async function getVideoDetails(videoId: string) {
+async function getVideoDetails(videoId: string): Promise<YouTubeVideoDetails> {
   try {
     const response = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
       params: {
@@ -206,7 +235,7 @@ async function analyzeTranscript(
   videoTitle: string, 
   channelName: string, 
   publishDate: string
-) {
+): Promise<AnalysisResult> {
   try {
     // プロンプトの作成
     const prompt = `
@@ -260,7 +289,7 @@ URL: ${videoUrl}
 
     // レスポンスからJSONを抽出
     const content = response.choices[0]?.message?.content || '';
-    const analysisResult = JSON.parse(content);
+    const analysisResult = JSON.parse(content) as AnalysisResult;
 
     return {
       ...analysisResult,
@@ -281,7 +310,7 @@ URL: ${videoUrl}
  * @param keyword 検索キーワード
  * @returns 統合された分析レポート
  */
-function combineAnalysisResults(results: any[], keyword: string) {
+function combineAnalysisResults(results: AnalysisResult[], keyword: string) {
   // 検索キーワードに基づいたタイトルを作成
   const title = `「${keyword}」に関する動画分析まとめ`;
   

@@ -37,10 +37,11 @@ export async function POST(request: Request) {
 
     // レスポンスを返す
     return NextResponse.json(analysis);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('分析エラー:', error);
+    const errorMessage = error instanceof Error ? error.message : '分析中にエラーが発生しました';
     return NextResponse.json(
-      { error: error.message || '分析中にエラーが発生しました' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
