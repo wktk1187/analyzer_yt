@@ -34,3 +34,30 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## 認証機能
+
+このアプリケーションには、特定のメールアドレスとパスワードでのみログインできる認証機能が実装されています。
+
+### ローカル環境での設定
+
+1. `.env.local` ファイルに以下の環境変数を設定します：
+
+```
+ADMIN_EMAIL=あなたのメールアドレス
+ADMIN_PASSWORD=あなたのパスワード
+```
+
+### Vercelでのデプロイ設定
+
+1. Vercelダッシュボードで、プロジェクトの「Settings」タブを選択
+2. 「Environment Variables」セクションで以下の環境変数を追加：
+   - `ADMIN_EMAIL`: 管理者のメールアドレス
+   - `ADMIN_PASSWORD`: 管理者のパスワード（安全な複雑なパスワードを使用してください）
+3. その他の必要な環境変数（`OPENAI_API_KEY`、`YOUTUBE_API_KEY`など）も忘れずに設定
+4. 「Save」をクリック
+5. プロジェクトを再デプロイして設定を反映
+
+**セキュリティに関する注意事項**:
+- 本番環境では、長くて複雑なパスワードを使用してください
+- 将来的には、よりセキュアな認証システム（JWT認証やOAuth）への移行を検討してください
