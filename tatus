@@ -1,0 +1,14 @@
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+package-lock.json
+package.json
+src/app/components/Header.tsx
+src/app/page.tsx
+src/services/analyzer.ts
+src/services/schemas.ts
+[33mcommit e24d01de88d71279c2b699637b2c3283382d9afb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: abun <otsuka.abun@gmail.com>
+Date:   Mon Apr 14 15:56:43 2025 +0900
+
+    UI改善とバグ修正：ヘッダーの統合、GPTレスポンスのバリデーション修正、スタイリング修正

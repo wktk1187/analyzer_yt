@@ -1,0 +1,959 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: src/app/login/page.tsx, .env.local, src/app/api/search-and-analyze/route.ts, src/utils/getTranscript.ts, README.md, src/app/layout.tsx, src/app/components/Header.tsx, src/app/components/LogoutButton.tsx, src/app/api/auth/logout/route.ts, src/middleware.ts, src/app/api/auth/login/route.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+Additional Info:
+----------------
+
+================================================================
+Directory Structure
+================================================================
+README.md
+src/app/api/auth/login/route.ts
+src/app/api/auth/logout/route.ts
+src/app/api/search-and-analyze/route.ts
+src/app/components/Header.tsx
+src/app/components/LogoutButton.tsx
+src/app/layout.tsx
+src/app/login/page.tsx
+src/middleware.ts
+src/utils/getTranscript.ts
+
+================================================================
+Files
+================================================================
+
+================
+File: src/app/api/auth/login/route.ts
+================
+import { NextRequest, NextResponse } from 'next/server';
+
+// 認証情報を環境変数から取得するか、ハードコードします
+// 本番環境では環境変数を使用することを強く推奨します
+const ALLOWED_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+const ALLOWED_PASSWORD = process.env.ADMIN_PASSWORD || 'securepassword123';
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { email, password } = body;
+
+    // 認証情報の検証
+    if (email === ALLOWED_EMAIL && password === ALLOWED_PASSWORD) {
+      // ログイン成功
+      // JWTやクッキーの設定はここで行います
+      const response = NextResponse.json(
+        { success: true, message: 'ログインに成功しました' },
+        { status: 200 }
+      );
+
+      // セッションクッキーを設定（24時間有効）
+      response.cookies.set({
+        name: 'auth_session',
+        value: 'authenticated',
+        httpOnly: true,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 24時間（秒単位）
+        sameSite: 'strict',
+      });
+
+      return response;
+    } else {
+      // ログイン失敗
+      return NextResponse.json(
+        { success: false, message: 'メールアドレスまたはパスワードが正しくありません' },
+        { status: 401 }
+      );
+    }
+  } catch (error) {
+    console.error('ログイン処理中にエラーが発生しました:', error);
+    return NextResponse.json(
+      { success: false, message: 'サーバーエラーが発生しました' },
+      { status: 500 }
+    );
+  }
+}
+
+================
+File: src/app/components/LogoutButton.tsx
+================
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+export default function LogoutButton() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // ログアウト成功時、ログインページにリダイレクト
+        router.push('/login');
+      } else {
+        console.error('ログアウトに失敗しました');
+      }
+    } catch (err) {
+      console.error('ログアウト処理中にエラーが発生しました:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      disabled={isLoading}
+      className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+    >
+      {isLoading ? 'ログアウト中...' : 'ログアウト'}
+    </button>
+  );
+}
+
+================
+File: src/middleware.ts
+================
+import { NextRequest, NextResponse } from 'next/server';
+
+// 公開パスのリスト（認証が不要なパス）
+const publicPaths = ['/login', '/api/auth/login'];
+
+export function middleware(request: NextRequest) {
+  // リクエストのパスを取得
+  const path = request.nextUrl.pathname;
+  
+  // 公開パスの場合は認証をスキップ
+  if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
+    return NextResponse.next();
+  }
+  
+  // API関連のパスは認証をスキップ（必要に応じて変更可）
+  if (path.startsWith('/api/') && !path.startsWith('/api/auth/')) {
+    return NextResponse.next();
+  }
+
+  // 認証クッキーを確認
+  const authCookie = request.cookies.get('auth_session');
+  
+  // クッキーがない場合はログインページにリダイレクト
+  if (!authCookie || authCookie.value !== 'authenticated') {
+    const loginUrl = new URL('/login', request.url);
+    // リダイレクト先のパスをクエリパラメータに追加（オプション）
+    loginUrl.searchParams.set('from', path);
+    return NextResponse.redirect(loginUrl);
+  }
+  
+  // 認証済みならそのまま続行
+  return NextResponse.next();
+}
+
+// ミドルウェアを適用するパスを指定
+export const config = {
+  matcher: [
+    // すべてのパスに適用するが、静的ファイルは除外
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};
+
+================
+File: README.md
+================
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## 認証機能
+
+このアプリケーションには、特定のメールアドレスとパスワードでのみログインできる認証機能が実装されています。
+
+### ローカル環境での設定
+
+1. `.env.local` ファイルに以下の環境変数を設定します：
+
+```
+ADMIN_EMAIL=あなたのメールアドレス
+ADMIN_PASSWORD=あなたのパスワード
+```
+
+### Vercelでのデプロイ設定
+
+1. Vercelダッシュボードで、プロジェクトの「Settings」タブを選択
+2. 「Environment Variables」セクションで以下の環境変数を追加：
+   - `ADMIN_EMAIL`: 管理者のメールアドレス
+   - `ADMIN_PASSWORD`: 管理者のパスワード（安全な複雑なパスワードを使用してください）
+3. その他の必要な環境変数（`OPENAI_API_KEY`、`YOUTUBE_API_KEY`など）も忘れずに設定
+4. 「Save」をクリック
+5. プロジェクトを再デプロイして設定を反映
+
+**セキュリティに関する注意事項**:
+- 本番環境では、長くて複雑なパスワードを使用してください
+- 将来的には、よりセキュアな認証システム（JWT認証やOAuth）への移行を検討してください
+
+================
+File: src/app/components/Header.tsx
+================
+'use client';
+
+import { usePathname } from 'next/navigation';
+import LogoutButton from './LogoutButton';
+
+export default function Header() {
+  const pathname = usePathname();
+  
+  // ログインページでは表示しない
+  if (pathname === '/login') {
+    return null;
+  }
+
+  return (
+    <header className="bg-white shadow">
+      <div className="mx-auto flex max-w-7xl items-center justify-end p-4">
+        <LogoutButton />
+      </div>
+    </header>
+  );
+}
+
+================
+File: src/app/layout.tsx
+================
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import Header from "./components/Header";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "YouTubeアナライザー",
+  description: "YouTubeの動画を分析するアプリケーション",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  // クライアントコンポーネントでの認証チェックを使用するため、
+  // サーバーコンポーネントではヘッダー表示の制御はしません
+  return (
+    <html lang="ja">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <Header />
+        <main>
+          {children}
+        </main>
+      </body>
+    </html>
+  );
+}
+
+================
+File: src/app/login/page.tsx
+================
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // ログイン成功時、メインページにリダイレクト
+        router.push('/');
+      } else {
+        // エラーメッセージを表示
+        setError(data.message || 'ログインに失敗しました');
+      }
+    } catch (err) {
+      setError('サーバーエラーが発生しました');
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow-md">
+        <div>
+          <h1 className="text-center text-2xl font-bold">ログイン</h1>
+        </div>
+        
+        {error && (
+          <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4 rounded-md">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                メールアドレス
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                パスワード
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              className="group relative flex w-full justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              ログイン
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+================
+File: src/utils/getTranscript.ts
+================
+import { YoutubeTranscript } from 'youtube-transcript';
+
+/**
+ * YouTube URLからビデオIDを抽出する
+ * @param url YouTube動画のURL
+ * @returns ビデオID
+ */
+export const extractVideoId = (url: string): string | null => {
+  // 通常のYouTube URL (例: https://www.youtube.com/watch?v=VIDEO_ID)
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  const match = url.match(regExp);
+  
+  return (match && match[7].length === 11) ? match[7] : null;
+};
+
+/**
+ * YouTube動画の字幕を取得する
+ * @param videoId YouTube動画のID
+ * @returns 時間付きの字幕テキスト
+ */
+export const getTranscript = async (videoId: string): Promise<string> => {
+  try {
+    console.log(`トランスクリプト取得開始: videoId=${videoId}`);
+    
+    // 字幕を取得（日本語優先、なければ英語、それもなければ自動字幕）
+    let transcriptItems;
+    try {
+      // まず日本語を試す
+      console.log('日本語の字幕を試行中...');
+      transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+        lang: 'ja',
+      });
+      console.log('日本語の字幕を取得しました');
+    } catch (jaError) {
+      console.log('日本語の字幕取得に失敗:', jaError);
+      try {
+        // 次に英語を試す
+        console.log('英語の字幕を試行中...');
+        transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+          lang: 'en',
+        });
+        console.log('英語の字幕を取得しました');
+      } catch (enError) {
+        console.log('英語の字幕取得に失敗:', enError);
+        // 最後に自動字幕を試す
+        console.log('自動字幕を試行中...');
+        transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+        console.log('自動字幕を取得しました');
+      }
+    }
+
+    if (!transcriptItems || transcriptItems.length === 0) {
+      console.error('字幕データが空です');
+      throw new Error('字幕が見つかりませんでした');
+    }
+
+    console.log(`取得した字幕数: ${transcriptItems.length}件`);
+
+    // 時間付きのテキストに整形
+    const formattedTranscript = transcriptItems.map(item => {
+      // 時間を分:秒形式に変換
+      const minutes = Math.floor(item.offset / 60000);
+      const seconds = Math.floor((item.offset % 60000) / 1000);
+      const timeStamp = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      return `[${timeStamp}] ${item.text}`;
+    }).join('\n');
+
+    console.log('字幕データの整形が完了しました');
+    return formattedTranscript;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    console.error(`字幕取得エラー: ${errorMessage}`, error);
+    throw new Error(`字幕の取得に失敗しました: ${errorMessage}`);
+  }
+};
+
+/**
+ * YouTube URLから字幕を取得する
+ * @param url YouTube動画のURL
+ * @returns 時間付きの字幕テキスト
+ */
+export const getTranscriptFromUrl = async (url: string): Promise<string> => {
+  const videoId = extractVideoId(url);
+  
+  if (!videoId) {
+    throw new Error('有効なYouTube URLではありません');
+  }
+  
+  return await getTranscript(videoId);
+};
+
+================
+File: src/app/api/auth/logout/route.ts
+================
+import { NextResponse } from 'next/server';
+
+export async function POST() {
+  try {
+    // レスポンスを作成
+    const response = NextResponse.json(
+      { success: true, message: 'ログアウトに成功しました' },
+      { status: 200 }
+    );
+
+    // 認証クッキーを削除
+    response.cookies.delete('auth_session');
+
+    return response;
+  } catch (error) {
+    console.error('ログアウト処理中にエラーが発生しました:', error);
+    return NextResponse.json(
+      { success: false, message: 'サーバーエラーが発生しました' },
+      { status: 500 }
+    );
+  }
+}
+
+================
+File: src/app/api/search-and-analyze/route.ts
+================
+import { NextResponse } from 'next/server';
+import axios from 'axios';
+import { getTranscript } from '@/utils/getTranscript';
+import OpenAI from 'openai';
+
+// OpenAI APIクライアントの初期化
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// YouTube Data API v3のキー
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+// 検索条件
+const MAX_VIDEOS = 5;
+const MIN_VIEW_COUNT = 10000;
+const PUBLISHED_AFTER = new Date();
+PUBLISHED_AFTER.setFullYear(PUBLISHED_AFTER.getFullYear() - 1); // 1年前
+
+// YouTubeビデオの型定義
+interface YouTubeVideo {
+  id: {
+    videoId: string;
+  };
+  snippet: {
+    title: string;
+    description: string;
+    publishedAt: string;
+    channelTitle: string;
+    thumbnails: {
+      default: { url: string; width: number; height: number };
+      medium: { url: string; width: number; height: number };
+      high: { url: string; width: number; height: number };
+    };
+  };
+}
+
+// YouTube APIレスポンスの型定義
+interface YouTubeVideoDetails {
+  id: string;
+  snippet: {
+    title: string;
+    channelTitle: string;
+    publishedAt: string;
+  };
+  statistics: {
+    viewCount: string;
+    likeCount?: string;
+    commentCount?: string;
+  };
+}
+
+// 分析結果の型定義
+interface AnalysisResult {
+  title: string;
+  summary: string;
+  conclusion: string;
+  points: string[];
+  comment: string;
+  videoUrl: string;
+  videoTitle: string;
+  channelName: string;
+  publishDate: string;
+  [key: string]: unknown;
+}
+
+export async function POST(request: Request) {
+  try {
+    console.log('検索・分析APIが呼び出されました');
+    
+    // リクエストからキーワードを取得
+    const { keyword } = await request.json();
+    console.log(`検索キーワード: ${keyword}`);
+
+    if (!keyword) {
+      console.error('検索キーワードが空です');
+      return NextResponse.json(
+        { error: '検索キーワードが必要です' },
+        { status: 400 }
+      );
+    }
+
+    // 環境変数の確認
+    if (!process.env.YOUTUBE_API_KEY) {
+      console.error('YOUTUBE_API_KEYが設定されていません');
+      return NextResponse.json(
+        { error: 'YouTube API設定エラー' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEYが設定されていません');
+      return NextResponse.json(
+        { error: 'OpenAI API設定エラー' },
+        { status: 500 }
+      );
+    }
+
+    // YouTube APIを使用して動画を検索
+    console.log('YouTube動画検索を開始します');
+    const videos = await searchVideos(keyword);
+    console.log(`検索結果: ${videos.length}件の動画が見つかりました`);
+
+    if (!videos || videos.length === 0) {
+      console.error('条件に合う動画が見つかりませんでした');
+      return NextResponse.json(
+        { error: '条件に合う動画が見つかりませんでした' },
+        { status: 404 }
+      );
+    }
+
+    // 各動画を分析
+    console.log('動画の分析を開始します');
+    const analysisPromises = videos.map(async (video: YouTubeVideo) => {
+      try {
+        const videoId = video.id.videoId;
+        console.log(`動画ID ${videoId} の分析を開始します`);
+        
+        console.log(`動画ID ${videoId} の字幕を取得します`);
+        const transcript = await getTranscript(videoId);
+        console.log(`動画ID ${videoId} の字幕取得が完了しました`);
+        
+        // 動画情報を取得
+        console.log(`動画ID ${videoId} の詳細情報を取得します`);
+        const videoDetails = await getVideoDetails(videoId);
+        console.log(`動画ID ${videoId} の詳細情報取得が完了しました`);
+        
+        // 分析を実行
+        console.log(`動画ID ${videoId} の内容分析を開始します`);
+        const analysis = await analyzeTranscript(
+          transcript, 
+          `https://www.youtube.com/watch?v=${videoId}`,
+          videoDetails.snippet.title,
+          videoDetails.snippet.channelTitle,
+          new Date(videoDetails.snippet.publishedAt).toLocaleDateString('ja-JP')
+        );
+        console.log(`動画ID ${videoId} の分析が完了しました`);
+        
+        return analysis;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+        console.error(`動画 ${video.id.videoId} の分析エラー: ${errorMessage}`, error);
+        return null;
+      }
+    });
+
+    // すべての分析結果を待機
+    console.log('すべての分析結果を取得中...');
+    const analysisResults = await Promise.all(analysisPromises);
+    
+    // nullでない結果のみをフィルタリング
+    const validResults = analysisResults.filter(result => result !== null) as AnalysisResult[];
+    console.log(`有効な分析結果: ${validResults.length}件`);
+
+    if (validResults.length === 0) {
+      console.error('すべての動画の分析に失敗しました');
+      return NextResponse.json(
+        { error: 'すべての動画の分析に失敗しました' },
+        { status: 500 }
+      );
+    }
+
+    // 複数の分析結果を1つのレポートにまとめる
+    console.log('分析結果をまとめています...');
+    const combinedAnalysis = combineAnalysisResults(validResults, keyword);
+    console.log('分析レポートの作成が完了しました');
+
+    // レスポンスを返す
+    return NextResponse.json(combinedAnalysis);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    console.error('検索・分析エラー:', errorMessage, error);
+    return NextResponse.json(
+      { error: `検索・分析中にエラーが発生しました: ${errorMessage}` },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * YouTube APIを使用して動画を検索する
+ * @param keyword 検索キーワード
+ * @returns 検索結果の動画リスト
+ */
+async function searchVideos(keyword: string): Promise<YouTubeVideo[]> {
+  try {
+    // 検索クエリのパラメータ
+    const params = {
+      part: 'snippet',
+      q: keyword,
+      type: 'video',
+      maxResults: 10, // 初期検索では多めに取得
+      publishedAfter: PUBLISHED_AFTER.toISOString(),
+      relevanceLanguage: 'ja',
+      key: YOUTUBE_API_KEY
+    };
+
+    // YouTube Data API v3を使用して検索
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', { params });
+    
+    if (!response.data.items || response.data.items.length === 0) {
+      throw new Error('動画が見つかりませんでした');
+    }
+
+    // 各動画の詳細情報を取得して、条件でフィルタリング
+    const videoIds = response.data.items.map((item: YouTubeVideo) => item.id.videoId).join(',');
+    const detailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+      params: {
+        part: 'snippet,statistics',
+        id: videoIds,
+        key: YOUTUBE_API_KEY
+      }
+    });
+
+    // 条件に合う動画をフィルタリング
+    const filteredVideos = detailsResponse.data.items
+      .filter((video: YouTubeVideoDetails) => {
+        const viewCount = parseInt(video.statistics.viewCount, 10) || 0;
+        return viewCount >= MIN_VIEW_COUNT;
+      })
+      .slice(0, MAX_VIDEOS); // 最大5本に制限
+
+    // 元の検索結果と詳細情報をマージ
+    return response.data.items
+      .filter((item: YouTubeVideo) => 
+        filteredVideos.some((video: YouTubeVideoDetails) => video.id === item.id.videoId)
+      )
+      .slice(0, MAX_VIDEOS);
+  } catch (error) {
+    console.error('YouTube API検索エラー:', error);
+    throw new Error('動画の検索に失敗しました');
+  }
+}
+
+/**
+ * 動画の詳細情報を取得する
+ * @param videoId 動画ID
+ * @returns 動画の詳細情報
+ */
+async function getVideoDetails(videoId: string): Promise<YouTubeVideoDetails> {
+  try {
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+      params: {
+        part: 'snippet,statistics',
+        id: videoId,
+        key: YOUTUBE_API_KEY
+      }
+    });
+
+    if (!response.data.items || response.data.items.length === 0) {
+      throw new Error('動画情報が見つかりませんでした');
+    }
+
+    return response.data.items[0];
+  } catch (error) {
+    console.error('動画詳細取得エラー:', error);
+    throw new Error('動画の詳細情報の取得に失敗しました');
+  }
+}
+
+/**
+ * 字幕を分析してレポートを生成する
+ * @param transcript 字幕テキスト
+ * @param videoUrl 動画URL
+ * @param videoTitle 動画タイトル
+ * @param channelName チャンネル名
+ * @param publishDate 公開日
+ * @returns 分析レポート
+ */
+async function analyzeTranscript(
+  transcript: string, 
+  videoUrl: string, 
+  videoTitle: string, 
+  channelName: string, 
+  publishDate: string
+): Promise<AnalysisResult> {
+  try {
+    // プロンプトの作成
+    const prompt = `
+あなたはYouTube動画の分析エキスパートです。以下の字幕テキストから動画の内容を分析し、要約してください。
+カジュアルな話し言葉で、以下の形式でレポートを作成してください。
+
+■ タイトル（動画内容を端的に表す）
+■ 概要（要点のまとめ）
+■ この動画の主張・結論
+■ 分析ポイント（3〜5項目、箇条書き）
+■ 私の一言コメント（主観的なまとめ）
+
+以下が字幕テキストです：
+${transcript}
+
+動画情報:
+タイトル: ${videoTitle}
+チャンネル名: ${channelName}
+公開日: ${publishDate}
+URL: ${videoUrl}
+
+レスポンスはJSON形式で以下のフィールドを含めてください：
+{
+  "title": "タイトル",
+  "summary": "概要",
+  "conclusion": "主張・結論",
+  "points": ["ポイント1", "ポイント2", "ポイント3"],
+  "comment": "一言コメント",
+  "videoUrl": "${videoUrl}",
+  "videoTitle": "${videoTitle}",
+  "channelName": "${channelName}",
+  "publishDate": "${publishDate}"
+}
+`;
+
+    // GPT-4-turboによる分析
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたはYouTube動画の分析エキスパートです。動画の内容を簡潔に要約し、重要なポイントを抽出します。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      response_format: { type: 'json_object' }
+    });
+
+    // レスポンスからJSONを抽出
+    const content = response.choices[0]?.message?.content || '';
+    const analysisResult = JSON.parse(content) as AnalysisResult;
+
+    return {
+      ...analysisResult,
+      videoUrl,
+      videoTitle,
+      channelName,
+      publishDate
+    };
+  } catch (error) {
+    console.error('GPT分析エラー:', error);
+    throw new Error('動画の分析に失敗しました');
+  }
+}
+
+/**
+ * 複数の分析結果を1つのレポートにまとめる
+ * @param results 分析結果の配列
+ * @param keyword 検索キーワード
+ * @returns 統合された分析レポート
+ */
+function combineAnalysisResults(results: AnalysisResult[], keyword: string) {
+  // 検索キーワードに基づいたタイトルを作成
+  const title = `「${keyword}」に関する動画分析まとめ`;
+  
+  // 各動画の分析結果を1つのオブジェクトにまとめる
+  const videos = results.map(result => ({
+    title: result.title,
+    videoTitle: result.videoTitle,
+    summary: result.summary,
+    conclusion: result.conclusion,
+    points: result.points,
+    comment: result.comment,
+    videoUrl: result.videoUrl,
+    channelName: result.channelName,
+    publishDate: result.publishDate
+  }));
+
+  // 共通の概要を作成
+  const summary = `「${keyword}」に関する${videos.length}本の動画を分析しました。それぞれの動画の要点をまとめています。`;
+  
+  // 共通の結論を抽出（各動画の結論から共通点を見つける）
+  const commonConclusion = `これらの動画から見えてくる「${keyword}」に関する共通の見解や重要ポイントをまとめました。`;
+
+  return {
+    title,
+    summary,
+    conclusion: commonConclusion,
+    videos,
+    keyword,
+    count: videos.length
+  };
+}
+
+
+
+================================================================
+End of Codebase
+================================================================
