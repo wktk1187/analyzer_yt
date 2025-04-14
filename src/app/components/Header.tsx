@@ -13,7 +13,8 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow">
-      <div className="mx-auto flex max-w-7xl items-center justify-end p-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between p-4">
+        <h1 className="text-2xl font-bold text-gray-900">YouTube分析ツール</h1>
         <LogoutButton />
       </div>
     </header>

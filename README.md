@@ -1,3 +1,5 @@
+# YouTubeアナライザー
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -43,7 +45,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 1. `.env.local` ファイルに以下の環境変数を設定します：
 
-```
+```env
 ADMIN_EMAIL=あなたのメールアドレス
 ADMIN_PASSWORD=あなたのパスワード
 ```
@@ -52,11 +54,14 @@ ADMIN_PASSWORD=あなたのパスワード
 
 1. Vercelダッシュボードで、プロジェクトの「Settings」タブを選択
 2. 「Environment Variables」セクションで以下の環境変数を追加：
+
    - `ADMIN_EMAIL`: 管理者のメールアドレス
    - `ADMIN_PASSWORD`: 管理者のパスワード（安全な複雑なパスワードを使用してください）
-3. その他の必要な環境変数（`OPENAI_API_KEY`、`YOUTUBE_API_KEY`など）も忘れずに設定
-4. 「Save」をクリック
-5. プロジェクトを再デプロイして設定を反映
+   - `OPENAI_API_KEY`: OpenAIのAPIキー
+   - `YOUTUBE_API_KEY`: YouTubeのAPIキー
+
+3. 「Save」をクリック
+4. プロジェクトを再デプロイして設定を反映
 
 **セキュリティに関する注意事項**:
 - 本番環境では、長くて複雑なパスワードを使用してください

@@ -1,12 +1,16 @@
 import { z } from 'zod';
 
-// 単一動画分析のスキーマ
-export const videoAnalysisSchema = z.object({
+// GPTレスポンスの基本スキーマ（GPTから直接返ってくる部分）
+export const gptResponseSchema = z.object({
   title: z.string(),
   summary: z.string(),
   conclusion: z.string(),
   points: z.array(z.string()),
   comment: z.string(),
+});
+
+// 単一動画分析の完全スキーマ（追加情報を含む）
+export const videoAnalysisSchema = gptResponseSchema.extend({
   videoUrl: z.string().url(),
   videoTitle: z.string().optional(),
   channelName: z.string().optional(),
@@ -35,13 +39,13 @@ export type MultiVideoAnalysis = z.infer<typeof multiVideoAnalysisSchema>;
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;
 
 // GPTレスポンスのパース関数
-export function parseGptResponse(content: string): VideoAnalysis {
+export function parseGptResponse(content: string): z.infer<typeof gptResponseSchema> {
   try {
     // JSONとしてパース
     const parsedContent = JSON.parse(content);
     
-    // スキーマに基づいてバリデーション
-    const result = videoAnalysisSchema.parse(parsedContent);
+    // GPTレスポンススキーマに基づいてバリデーション
+    const result = gptResponseSchema.parse(parsedContent);
     
     return result;
   } catch (error) {
@@ -55,7 +59,6 @@ export function parseGptResponse(content: string): VideoAnalysis {
       conclusion: 'データを正しく解析できませんでした。',
       points: ['データの解析に失敗しました。'],
       comment: 'システムエラーが発生しました。再試行してください。',
-      videoUrl: '',
     };
   }
 } 

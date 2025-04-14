@@ -82,13 +82,22 @@ export async function analyzeTranscript(
 
 字幕テキスト:
 ${transcript.substring(0, 15000)} // 15000文字に制限して処理速度向上
+
+レスポンスは必ずJSON形式で返してください。以下のようなJSONオブジェクト構造で返してください：
+{
+  "title": "タイトル",
+  "summary": "概要",
+  "conclusion": "主張・結論",
+  "points": ["ポイント1", "ポイント2", "ポイント3"],
+  "comment": "一言コメント"
+}
 `;
 
     // OpenAI APIを呼び出し
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo-0125", // より高速で安価なモデルを使用
       messages: [
-        { role: "system", content: "あなたはYouTube動画の分析エキスパートです。" },
+        { role: "system", content: "あなたはYouTube動画の分析エキスパートです。JSONフォーマットで応答してください。" },
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
