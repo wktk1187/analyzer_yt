@@ -1,6 +1,5 @@
 import axios from 'axios';
 import OpenAI from 'openai';
-import { getTranscript } from '@/utils/getTranscript';
 import { VideoAnalysis, MultiVideoAnalysis, parseGptResponse } from './schemas';
 
 // OpenAI APIクライアントの初期化
