@@ -68,26 +68,45 @@ export async function POST(request: Request) {
         console.log(`動画ID ${videoId} の分析を開始します (${index + 1}/${videos.length})`);
         
         console.log(`動画ID ${videoId} の字幕を取得します`);
-        const transcript = await getTranscript(videoId);
-        console.log(`動画ID ${videoId} の字幕取得が完了しました`);
+        let transcript;
+        try {
+          transcript = await getTranscript(videoId);
+          console.log(`動画ID ${videoId} の字幕取得が完了しました`);
+        } catch (transcriptError: unknown) {
+          const errMsg = transcriptError instanceof Error ? transcriptError.message : '不明なエラー';
+          console.error(`動画ID ${videoId} の字幕取得エラー:`, transcriptError);
+          throw new Error(`字幕取得エラー: ${errMsg}`);
+        }
         
         // 動画情報を取得
         console.log(`動画ID ${videoId} の詳細情報を取得します`);
-        const videoDetails = await getVideoDetails(videoId);
-        console.log(`動画ID ${videoId} の詳細情報取得が完了しました`);
+        let videoDetails;
+        try {
+          videoDetails = await getVideoDetails(videoId);
+          console.log(`動画ID ${videoId} の詳細情報取得が完了しました`);
+        } catch (detailsError: unknown) {
+          const errMsg = detailsError instanceof Error ? detailsError.message : '不明なエラー';
+          console.error(`動画ID ${videoId} の詳細情報取得エラー:`, detailsError);
+          throw new Error(`詳細情報取得エラー: ${errMsg}`);
+        }
         
         // 分析を実行
         console.log(`動画ID ${videoId} の内容分析を開始します`);
-        const analysis = await analyzeTranscript(
-          transcript, 
-          `https://www.youtube.com/watch?v=${videoId}`,
-          videoDetails.snippet.title,
-          videoDetails.snippet.channelTitle,
-          new Date(videoDetails.snippet.publishedAt).toLocaleDateString('ja-JP')
-        );
-        console.log(`動画ID ${videoId} の分析が完了しました`);
-        
-        return analysis;
+        try {
+          const analysis = await analyzeTranscript(
+            transcript, 
+            `https://www.youtube.com/watch?v=${videoId}`,
+            videoDetails.snippet.title,
+            videoDetails.snippet.channelTitle,
+            new Date(videoDetails.snippet.publishedAt).toLocaleDateString('ja-JP')
+          );
+          console.log(`動画ID ${videoId} の分析が完了しました`);
+          return analysis;
+        } catch (analysisError: unknown) {
+          const errMsg = analysisError instanceof Error ? analysisError.message : '不明なエラー';
+          console.error(`動画ID ${videoId} の内容分析エラー:`, analysisError);
+          throw new Error(`内容分析エラー: ${errMsg}`);
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '不明なエラー';
         console.error(`動画 ${video.id.videoId} の分析エラー: ${errorMessage}`, error);
@@ -108,9 +127,18 @@ export async function POST(request: Request) {
     console.log(`有効な分析結果: ${validResults.length}件`);
 
     if (validResults.length === 0) {
-      console.error('すべての動画の分析に失敗しました');
+      // エラーの詳細をログに記録
+      const errorDetails = analysisPromises.map((promise, index) => {
+        try {
+          return `動画 ${index + 1}: ${videos[index].id.videoId} の分析に失敗`;
+        } catch (e) {
+          return `動画 ${index + 1}: 詳細不明`;
+        }
+      }).join('\n');
+      
+      console.error('すべての動画の分析に失敗しました。詳細:', errorDetails);
       return NextResponse.json(
-        { error: 'すべての動画の分析に失敗しました' },
+        { error: 'すべての動画の分析に失敗しました', details: errorDetails },
         { status: 500 }
       );
     }
