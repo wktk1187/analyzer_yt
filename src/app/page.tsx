@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // 分析結果の型定義
 interface VideoAnalysis {
@@ -33,12 +33,43 @@ export default function Home() {
   const [keyword, setKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [progress, setProgress] = useState({
+    status: '',
+    message: '',
+    step: 0,
+    totalSteps: 4
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [recentKeywords, setRecentKeywords] = useState<string[]>([]);
+
+  // ローカルストレージから検索履歴を読み込む
+  useEffect(() => {
+    const savedKeywords = localStorage.getItem('recentKeywords');
+    if (savedKeywords) {
+      setRecentKeywords(JSON.parse(savedKeywords));
+    }
+  }, []);
+
+  // 検索履歴を保存する関数
+  const saveKeyword = (newKeyword: string) => {
+    const updatedKeywords = [newKeyword, ...recentKeywords.filter(k => k !== newKeyword)].slice(0, 5);
+    setRecentKeywords(updatedKeywords);
+    localStorage.setItem('recentKeywords', JSON.stringify(updatedKeywords));
+  };
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
 
     setIsLoading(true);
+    setError(null);
+    setProgress({
+      status: 'analyzing',
+      message: '動画を分析中...',
+      step: 1,
+      totalSteps: 2
+    });
+    
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -48,10 +79,28 @@ export default function Home() {
         body: JSON.stringify({ url }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '分析中にエラーが発生しました');
+      }
+
       const data = await response.json();
       setResult(data);
+      setProgress({
+        status: 'complete',
+        message: '分析が完了しました',
+        step: 2,
+        totalSteps: 2
+      });
     } catch (error) {
       console.error("分析中にエラーが発生しました:", error);
+      setError(error instanceof Error ? error.message : '不明なエラーが発生しました');
+      setProgress({
+        status: 'error',
+        message: 'エラーが発生しました',
+        step: 0,
+        totalSteps: 2
+      });
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +110,18 @@ export default function Home() {
     e.preventDefault();
     if (!keyword) return;
 
+    // 履歴に追加
+    saveKeyword(keyword);
+    
     setIsLoading(true);
+    setError(null);
+    setProgress({
+      status: 'searching',
+      message: 'YouTube動画を検索中...',
+      step: 1,
+      totalSteps: 4
+    });
+    
     try {
       const response = await fetch("/api/search-and-analyze", {
         method: "POST",
@@ -71,13 +131,36 @@ export default function Home() {
         body: JSON.stringify({ keyword }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '検索・分析中にエラーが発生しました');
+      }
+
       const data = await response.json();
+      
+      // 進捗状態を更新
+      if (data.progress) {
+        setProgress(data.progress);
+      }
+      
       setResult(data);
     } catch (error) {
       console.error("検索・分析中にエラーが発生しました:", error);
+      setError(error instanceof Error ? error.message : '不明なエラーが発生しました');
+      setProgress({
+        status: 'error',
+        message: 'エラーが発生しました',
+        step: 0,
+        totalSteps: 4
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // キーワードを再利用する関数
+  const handleKeywordReuse = (savedKeyword: string) => {
+    setKeyword(savedKeyword);
   };
 
   // 結果が複数動画分析かどうかを判定する関数
@@ -134,7 +217,7 @@ export default function Home() {
                       value={keyword}
                       onChange={(e) => setKeyword(e.target.value)}
                       className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      placeholder="キーワードを入力（最大5本の動画を分析）"
+                      placeholder="キーワードを入力（複数の動画を分析）"
                     />
                   </div>
                   <div className="mt-4">
@@ -147,20 +230,65 @@ export default function Home() {
                     </button>
                   </div>
                 </form>
+                
+                {/* 最近の検索キーワード */}
+                {recentKeywords.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">最近の検索:</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {recentKeywords.map((k, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleKeywordReuse(k)}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          {k}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* 分析結果表示 */}
-          {isLoading && (
-            <div className="mt-8 bg-white shadow overflow-hidden sm:rounded-lg p-6">
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+          {/* エラー表示 */}
+          {error && (
+            <div className="mt-6 bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               </div>
-              <p className="text-center mt-4 text-gray-500">分析中です。しばらくお待ちください...</p>
             </div>
           )}
 
+          {/* 進捗状況表示 */}
+          {isLoading && (
+            <div className="mt-8 bg-white shadow overflow-hidden sm:rounded-lg p-6">
+              <div className="mb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-2">{progress.message}</h3>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" 
+                    style={{ width: `${(progress.step / progress.totalSteps) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="mt-2 text-sm text-gray-500">ステップ {progress.step}/{progress.totalSteps}</p>
+              </div>
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+              </div>
+              <p className="text-center mt-4 text-gray-500">{progress.status === 'analyzing' ? '分析には数分かかることがあります...' : '処理中です。しばらくお待ちください...'}</p>
+            </div>
+          )}
+
+          {/* 分析結果表示 */}
           {result && !isLoading && (
             <div className="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6">
@@ -262,18 +390,18 @@ export default function Home() {
                               <div className="mb-4">
                                 <h5 className="text-sm font-medium mb-1">分析ポイント</h5>
                                 <ul className="list-disc pl-5 text-sm">
-                                  {video.points && video.points.map((point: string, index: number) => (
-                                    <li key={index} className="mb-1">{point}</li>
+                                  {video.points.map((point, pointIndex) => (
+                                    <li key={pointIndex}>{point}</li>
                                   ))}
                                 </ul>
                               </div>
                               
                               <div className="mb-4">
-                                <h5 className="text-sm font-medium mb-1">私の一言コメント</h5>
+                                <h5 className="text-sm font-medium mb-1">コメント</h5>
                                 <p className="text-sm italic">{video.comment}</p>
                               </div>
                               
-                              <div className="text-xs text-gray-500">
+                              <div className="mt-3 text-xs text-gray-500">
                                 <a 
                                   href={video.videoUrl} 
                                   target="_blank" 
